@@ -1,9 +1,10 @@
 import json
 import shutil
 import sys
+from functools import reduce
 from pathlib import Path
 from textwrap import shorten
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 import requests
 
@@ -14,7 +15,7 @@ XL_FUNCS_PATH = CONTENT_PATH / "excel" / "functions.json"
 XL_PLATFORM_PATH = CONTENT_PATH / "excel" / "openapi.json"
 SEO_METADATA_PATH = WEBSITE_PATH / "metadata" / "platform_v4_seo_metadata.json"
 
-# URLs: the platorm url should match the backend being used by excel.openbb.co
+# URLs: the platform url should match the backend being used by excel.openbb.co
 XL_FUNCS_URL = "https://excel.openbb.co/assets/functions.json"
 XL_PLATFORM_URL = "https://sdk.openbb.co/openapi.json"
 
@@ -30,109 +31,16 @@ class CommandLib:
         "str": "Text",
         "string": "Text",
     }
+    API_PREFIX = "/api/v1"
 
-    # These examples will be generated in the core, but we keep them here meanwhile
-    EXAMPLE_PARAMS: Dict[str, Dict] = {
+    EXAMPLES: Dict[str, Dict] = {
         "/get": {
-            "data": '{"a","b","c";"d","e","f"}',
-            "row": '"d"',
-            "column": '"c"',
+            "Example 0": '=OBB.GET({"a","b","c";"d","e","f"})',
+            "Example 1": '=OBB.GET({"a","b","c";"d","e","f"},"d","c")',
         },
         "/byod": {
-            "widget": '"widget_name"',
-            "backend": '"backend_name"',
-        },
-        "crypto": {
-            "symbol": '"BTCUSD"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "query": '"coin"',
-        },
-        "currency": {
-            "symbol": '"EURUSD"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-        },
-        "derivatives": {
-            "symbol": '"AAPL"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-        },
-        "economy": {
-            "countries": '"united_states"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "units": '"growth_previous"',
-            "frequency": '"quarterly"',
-            "harmonized": "TRUE",
-            "query": '"gdp"',
-            "symbol": '"GFDGDPA188S"',
-            "limit": 5,
-            "period": '"quarter"',
-            "type": '"real"',
-            "adjusted": "TRUE",
-        },
-        "equity": {
-            "symbol": '"AAPL"',
-            "tag": '"ebitda"',
-            "query": '"ebitda"',
-            "year": 2022,
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "limit": 5,
-            "form_type": '"10-K"',
-            "period": '"annual"',
-            "frequency": '"quarterly"',
-            "type": "",
-            "sort": '"desc"',
-            "structure": '"flat"',
-            "date": '"2023-05-07"',
-            "page": 1,
-            "interval": '"1d"',
-            "is_symbol": "FALSE",
-        },
-        "/equity/fundamental/reported_financials": {
-            "symbol": '"AAPL"',
-            "period": '"annual"',
-            "statement_type": '"balance"',
-            "limit": 5,
-        },
-        "etf": {
-            "symbol": '"SPY"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "query": '"global"',
-        },
-        "fixedincome": {
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "maturity": '"90d"',
-            "category": '"nonfinancial"',
-            "grade": '"aa"',
-            "date": '"2023-05-07"',
-            "yield_curve": '"spot"',
-            "index_type": '"yield"',
-            "inflation_adjusted": "TRUE",
-            "interest_rate_type": '"deposit"',
-        },
-        "index": {
-            "symbol": '"^GSPC"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "index": '"sp500"',
-        },
-        "news": {
-            "symbol": '"AAPL"',
-            "symbols": '"AAPL,MSFT"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "limit": 5,
-        },
-        "regulators": {
-            "symbol": '"AAPL"',
-            "start_date": '"2023-01-01"',
-            "end_date": '"2023-12-31"',
-            "query": '"AAPL"',
+            "Example 0": '=OBB.BYOD("widget_name")',
+            "Example 1": '=OBB.BYOD("widget_name","backend_name")',
         },
     }
 
@@ -154,6 +62,17 @@ class CommandLib:
         r = requests.get(XL_PLATFORM_URL, timeout=10)
         with open(XL_PLATFORM_PATH, "w") as f:
             json.dump(r.json(), f, indent=2)
+
+    @staticmethod
+    def _traverse(
+        parts: List[str], map_: dict, exclude: Optional[List[str]] = None
+    ) -> dict:
+        """Traverse the map."""
+        parts = [p for p in parts if p not in (exclude or [])]
+        try:
+            return reduce(lambda x, y: x[y], parts, map_)
+        except KeyError:
+            return {}
 
     def read_seo_metadata(self) -> dict:
         """Get the SEO metadata."""
@@ -210,52 +129,74 @@ class CommandLib:
 
     def _get_data(self, cmd: str) -> dict:
         """Get the data of the command from the openapi."""
-        model = (
-            self.openapi.get("paths", {})
-            .get(f"/api/v1{cmd}", {})
-            .get("get", {})
-            .get("model")
+        schema = self._traverse(
+            [
+                "paths",
+                self.API_PREFIX + cmd,
+                "get",
+                "responses",
+                "200",
+                "content",
+                "application/json",
+                "schema",
+            ],
+            self.openapi,
         )
-        if model:
-            schema = self.openapi["components"]["schemas"][model]["properties"]
-            data = {}
-            for name, info in schema.items():
-                data[name] = {
-                    "description": info.get("description", "").replace("\n", " "),
+        if "$ref" in schema and (
+            inner_schema := self._traverse(
+                schema["$ref"].split("/"), self.openapi, ["#"]
+            )
+        ):
+            models = self._traverse(["properties", "results", "anyOf"], inner_schema)[0]
+            if models.get("type") == "array":
+                models = models["items"]
+
+            d = {}
+            for k, v in self._traverse(["discriminator", "mapping"], models).items():
+                model_schema = self._traverse(v.split("/"), self.openapi, ["#"])
+                d[k] = {
+                    name: {"description": info.get("description", "").replace("\n", "")}
+                    for name, info in model_schema["properties"].items()
                 }
-            return data
+            return d
         return {}
 
     def _get_examples(
-        self, cmd: str, signature_: str, parameters: dict, sep: str = ","
-    ) -> dict:
+        self, cmd: str, sig_parameters: Dict, sep: str = ","
+    ) -> Dict[str, str]:
         """Get the examples of the command."""
-        sig = signature_.split("(")[0] + "("
-        category = signature_.split(".")[1].lower()
-
-        def get_p_value(cmd, p_name) -> str:
-            if cmd in self.EXAMPLE_PARAMS:
-                return self.EXAMPLE_PARAMS[cmd].get(p_name, "")
-            return self.EXAMPLE_PARAMS.get(category, {}).get(p_name, "")
-
-        required_eg = sig
-        for p_name, p_info in parameters.items():
-            if p_info["required"]:
-                p_value = get_p_value(cmd, p_name)
-                required_eg += f"{p_value}{sep}"
-        required_eg = required_eg.strip(f"{sep} ") + ")"
-
-        standard_eg = sig
-        for p_name, p_info in parameters.items():
-            if p_name == "provider":
-                break
-            p_value = get_p_value(cmd, p_name)
-            standard_eg += f"{p_value}{sep}"
-        standard_eg = standard_eg.strip(f"{sep} ") + ")"
-
         if cmd in ("/get", "/byod"):
-            return {"Required": required_eg, "Standard": standard_eg}
-        return {"Required": required_eg}
+            return self.EXAMPLES[cmd]
+
+        # API examples
+        examples = self._traverse(
+            ["paths", self.API_PREFIX + cmd, "get", "examples"], self.openapi
+        )
+        sig = "=OBB." + self.xl_funcs[cmd].get("name", "")
+        ex_reference: Dict[str, str] = {}
+        for i, ex in enumerate(examples):
+            ex_code = ""
+            if ex.get("scope") == "api":
+                ex_code += sig + "("
+                ex_parameters = ex.get("parameters", {})
+                for p_name, p_info in sig_parameters.items():
+                    p_type = p_info.get("type", {})
+                    if p_value := ex_parameters.get(p_name):
+                        if p_type == "Text":
+                            ex_code += f'"{p_value}"{sep}'
+                        elif p_type == "Boolean":
+                            p_type = "TRUE" if bool(p_value) else "FALSE"
+                            ex_code += f"{p_type}{sep}"
+                        else:
+                            ex_code += f"{p_value}{sep}"
+                    else:
+                        ex_code += sep
+                ex_code = ex_code.strip(sep)
+                ex_code += ")"
+            # Some example are repeated, we only want to add them once
+            if ex_code not in ex_reference.values():
+                ex_reference[f"Example {i}"] = ex_code
+        return ex_reference
 
     def get_info(self, cmd: str) -> Dict[str, Any]:
         """Get the info for a command."""
@@ -268,7 +209,7 @@ class CommandLib:
         signature_ = self._get_signature(cmd, parameters)
         data = self._get_data(cmd)
         return_ = self.xl_funcs[cmd].get("result", {}).get("dimensionality", "")
-        examples = self._get_examples(cmd, signature_, parameters)
+        examples = self._get_examples(cmd, parameters)
         return {
             "name": name,
             "description": description,
@@ -368,21 +309,27 @@ class Editor:
                 return parameters
             return ""
 
-        def get_return_data() -> str:
+        def get_data() -> str:
             if data_schema := cmd_info["data"]:
-                data = "## Return Data\n\n"
-                data += "| Name | Description |\n"
-                data += "| ---- | ----------- |\n"
-                for field_name, field_info in data_schema.items():
-                    name = field_name
-                    description = field_info["description"]
-                    data += f"| {name} | {description} |\n"
+                data = "import Tabs from '@theme/Tabs';\n"
+                data += "import TabItem from '@theme/TabItem';\n\n"
+                data += "## Data\n\n"
+                data += "<Tabs>\n"
+                for provider, fields in data_schema.items():
+                    data += f"<TabItem value='{provider}'>\n\n"
+                    data += "| Name | Description |\n"
+                    data += "| ---- | ----------- |\n"
+                    for name, info in fields.items():
+                        description = info["description"]
+                        data += f"| {name} | {description} |\n"
+                    data += "</TabItem>\n"
+                data += "</Tabs>\n"
                 return data
             return ""
 
         def get_examples() -> str:
             if cmd_examples := cmd_info["examples"]:
-                examples = "### Example\n\n"
+                examples = "## Examples\n\n"
                 for _, v in cmd_examples.items():
                     # examples += f"### {k}\n\n"
                     examples += f"```{self.interface}\n"
@@ -400,7 +347,7 @@ class Editor:
         content += "---\n\n"
         content += get_parameters()
         content += "---\n\n"
-        content += get_return_data()
+        content += get_data()
         Editor.write(path, content)
 
     def generate_sidebar(self):
@@ -478,20 +425,16 @@ class Editor:
 
             ### Main folder
             if folder == self.main_folder:
-                files = list(path.glob("*"))
-                # Put the cmds_folder folder at the end
-                index = next(
-                    (
-                        i
-                        for i, path in enumerate(files)
-                        if path.stem == self.main_folder
-                    ),
-                    None,
+                # sort the folders first and then files to push byod,get to the bottom
+                files = sorted(
+                    list(path.glob("*")),
+                    key=lambda path: ((0, path) if path.is_dir() else (1, path)),
                 )
-                if index is not None:
-                    cmd_folder = files.pop(index)
-                    files.append(cmd_folder)
-                content += get_cards(folder=folder, files=files, command=False)
+                content += get_cards(
+                    folder=folder,
+                    files=files,
+                    command=False,
+                )
                 return content
 
             ### Menus
@@ -527,13 +470,13 @@ class Editor:
 
         def recursive(path: Path):
             position = 1
-            for p in path.iterdir():
+            for p in sorted(path.iterdir()):
                 if p.is_dir():
                     write_mdx_and_category(p, p.name, position)
                     recursive(p)
                     position += 1
 
-        write_mdx_and_category(self.target_dir, self.main_folder, 5)
+        write_mdx_and_category(self.target_dir, self.main_folder, 6)
         recursive(self.target_dir)
 
     def dump(self, reference_map: Dict) -> None:

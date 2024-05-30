@@ -1,9 +1,11 @@
 """Polygon Equity Historical Price Model."""
 
-# pylint: disable=unused-argument
+# pylint: disable=unused-argument,protected-access
 
 import warnings
-from datetime import datetime
+from datetime import (
+    datetime,
+)
 from typing import Any, Dict, List, Literal, Optional
 
 from dateutil.relativedelta import relativedelta
@@ -18,7 +20,9 @@ from openbb_core.provider.utils.helpers import (
     ClientResponse,
     ClientSession,
     amake_requests,
+    safe_fromtimestamp,
 )
+from pandas import to_datetime
 from pydantic import (
     Field,
     PositiveInt,
@@ -36,25 +40,34 @@ class PolygonEquityHistoricalQueryParams(EquityHistoricalQueryParams):
     Source: https://polygon.io/docs/stocks/getting-started
     """
 
-    __json_schema_extra__ = {"symbol": ["multiple_items_allowed"]}
+    __json_schema_extra__ = {"symbol": {"multiple_items_allowed": True}}
 
     interval: str = Field(
-        default="1d", description=QUERY_DESCRIPTIONS.get("interval", "")
+        default="1d",
+        description=QUERY_DESCRIPTIONS.get("interval", "")
+        + " The numeric portion of the interval can be any positive integer."
+        + " The letter portion can be one of the following: s, m, h, d, W, M, Q, Y",
+    )
+    adjustment: Literal["splits_only", "unadjusted"] = Field(
+        default="splits_only",
+        description="The adjustment factor to apply. Default is splits only.",
+    )
+    extended_hours: bool = Field(
+        default=False,
+        description="Include Pre and Post market data.",
     )
     sort: Literal["asc", "desc"] = Field(
-        default="desc", description="Sort order of the data."
+        default="asc",
+        description="Sort order of the data."
+        + " This impacts the results in combination with the 'limit' parameter."
+        + " The results are always returned in ascending order by date.",
     )
     limit: PositiveInt = Field(
         default=49999, description=QUERY_DESCRIPTIONS.get("limit", "")
     )
-    adjusted: bool = Field(
-        default=True,
-        description="Output time series is adjusted by historical split and dividend events.",
-    )
     _multiplier: PositiveInt = PrivateAttr(default=None)
     _timespan: str = PrivateAttr(default=None)
 
-    # pylint: disable=protected-access
     @model_validator(mode="after")
     @classmethod
     def get_api_interval_params(cls, values: "PolygonEquityHistoricalQueryParams"):
@@ -125,12 +138,12 @@ class PolygonEquityHistoricalFetcher(
     ) -> List[Dict]:
         """Return the raw data from the Polygon endpoint."""
         api_key = credentials.get("polygon_api_key") if credentials else ""
-
+        adjustment = query.adjustment == "splits_only"
         urls = [
             (
                 "https://api.polygon.io/v2/aggs/ticker/"
                 f"{symbol.upper()}/range/{query._multiplier}/{query._timespan}/"
-                f"{query.start_date}/{query.end_date}?adjusted={query.adjusted}"
+                f"{query.start_date}/{query.end_date}?adjusted={adjustment}"
                 f"&sort={query.sort}&limit={query.limit}&apiKey={api_key}"
             )
             for symbol in query.symbol.split(",")
@@ -142,19 +155,18 @@ class PolygonEquityHistoricalFetcher(
             data = await response.json()
 
             symbol = response.url.parts[4]
-            next_url = data.get("next_url", None)
-            results: list = data.get("results", [])
+            next_url = data.get("next_url", None)  # type: ignore
+            results: list = data.get("results", [])  # type: ignore
 
             while next_url:
                 url = f"{next_url}&apiKey={api_key}"
                 data = await session.get_json(url)
-                results.extend(data.get("results", []))
-                next_url = data.get("next_url", None)
+                results.extend(data.get("results", []))  # type: ignore
+                next_url = data.get("next_url", None)  # type: ignore
 
             for r in results:
-                r["t"] = datetime.fromtimestamp(
-                    r["t"] / 1000, tz=timezone("America/New_York")
-                )
+                v = r["t"] / 1000  # milliseconds to seconds
+                r["t"] = safe_fromtimestamp(v, tz=timezone("America/New_York"))  # type: ignore[arg-type]
                 if query._timespan not in ["second", "minute", "hour"]:
                     r["t"] = r["t"].date().strftime("%Y-%m-%d")
                 else:
@@ -178,7 +190,21 @@ class PolygonEquityHistoricalFetcher(
         """Transform the data from the Polygon endpoint."""
         if not data:
             raise EmptyDataError()
+        if query.extended_hours is True or query._timespan not in [
+            "second",
+            "minute",
+            "hour",
+        ]:
+            return [
+                PolygonEquityHistoricalData.model_validate(d)
+                for d in sorted(data, key=lambda x: x["t"], reverse=False)
+            ]
+
         return [
             PolygonEquityHistoricalData.model_validate(d)
             for d in sorted(data, key=lambda x: x["t"], reverse=False)
+            if to_datetime(d["t"]).time()
+            >= datetime.strptime("09:30:00", "%H:%M:%S").time()
+            and to_datetime(d["t"]).time()
+            <= datetime.strptime("16:00:00", "%H:%M:%S").time()
         ]

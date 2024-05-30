@@ -13,6 +13,7 @@ from openbb_core.provider.utils.helpers import get_querystring
 
 @pytest.fixture(scope="session")
 def headers():
+    """Get the headers for the API request."""
     userpass = f"{Env().API_USERNAME}:{Env().API_PASSWORD}"
     userpass_bytes = userpass.encode("ascii")
     base64_bytes = base64.b64encode(userpass_bytes)
@@ -25,6 +26,8 @@ def headers():
     [
         ({"provider": "intrinio", "symbol": "AAPL", "date": "2023-01-25"}),
         ({"provider": "cboe", "symbol": "AAPL", "use_cache": False}),
+        ({"provider": "tradier", "symbol": "AAPL"}),
+        ({"provider": "yfinance", "symbol": "AAPL"}),
         (
             {
                 "provider": "tmx",
@@ -37,6 +40,7 @@ def headers():
 )
 @pytest.mark.integration
 def test_derivatives_options_chains(params, headers):
+    """Test the options chains endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -49,13 +53,25 @@ def test_derivatives_options_chains(params, headers):
 @parametrize(
     "params",
     [
-        ({"symbol": "AAPL"}),
-        ({"provider": "intrinio", "source": "delayed", "symbol": "AAPL"}),
-        ({"provider": "intrinio", "symbol": "PLTR", "source": "delayed"}),
+        (
+            {
+                "symbol": "AAPL",
+                "provider": "intrinio",
+                "start_date": "2023-11-20",
+                "end_date": None,
+                "min_value": None,
+                "max_value": None,
+                "trade_type": None,
+                "sentiment": "neutral",
+                "limit": 1000,
+                "source": "delayed",
+            }
+        )
     ],
 )
 @pytest.mark.integration
 def test_derivatives_options_unusual(params, headers):
+    """Test the unusual options endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -82,6 +98,7 @@ def test_derivatives_options_unusual(params, headers):
 )
 @pytest.mark.integration
 def test_derivatives_futures_historical(params, headers):
+    """Test the futures historical endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -100,6 +117,7 @@ def test_derivatives_futures_historical(params, headers):
 )
 @pytest.mark.integration
 def test_derivatives_futures_curve(params, headers):
+    """Test the futures curve endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])

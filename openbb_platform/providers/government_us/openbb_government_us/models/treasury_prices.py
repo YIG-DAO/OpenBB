@@ -1,8 +1,8 @@
-"""US Government Treasury Prices"""
+"""US Government Treasury Prices."""
 
 # pylint: disable=unused-argument
 import asyncio
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from io import StringIO
 from typing import Any, Dict, List, Literal, Optional
 
@@ -12,8 +12,9 @@ from openbb_core.provider.standard_models.treasury_prices import (
     TreasuryPricesData,
     TreasuryPricesQueryParams,
 )
+from openbb_core.provider.utils.errors import EmptyDataError
 from openbb_government_us.utils.helpers import get_random_agent
-from pandas import read_csv, to_datetime
+from pandas import Index, read_csv, to_datetime
 from pydantic import Field
 
 
@@ -21,7 +22,7 @@ class GovernmentUSTreasuryPricesQueryParams(TreasuryPricesQueryParams):
     """US Government Treasury Prices Query."""
 
     cusip: Optional[str] = Field(description="Filter by CUSIP.", default=None)
-    security_type: Literal[None, "bill", "note", "bond", "tips", "frn"] = Field(
+    security_type: Optional[Literal["bill", "note", "bond", "tips", "frn"]] = Field(
         description="Filter by security type.",
         default=None,
     )
@@ -37,24 +38,21 @@ class GovernmentUSTreasuryPricesFetcher(
         List[GovernmentUSTreasuryPricesData],
     ]
 ):
+    """US Government Treasury Prices Fetcher."""
+
     @staticmethod
     def transform_query(
         params: Dict[str, Any]
     ) -> GovernmentUSTreasuryPricesQueryParams:
         """Transform query params."""
-
+        yesterday = date.today() - timedelta(days=1)
+        last_bd = (
+            yesterday - timedelta(yesterday.weekday() - 4)
+            if yesterday.weekday() > 4
+            else yesterday
+        )
         if params.get("date") is None:
-            _date = datetime.now().date()
-        else:
-            _date = (
-                datetime.strptime(params["date"], "%Y-%m-%d").date()
-                if isinstance(params["date"], str)
-                else params["date"]
-            )
-        if _date.weekday() > 4:
-            _date = _date - timedelta(days=_date.weekday() - 4)
-        params["date"] = _date
-
+            params["date"] = last_bd
         return GovernmentUSTreasuryPricesQueryParams(**params)
 
     # pylint: disable=unused-argument
@@ -65,7 +63,6 @@ class GovernmentUSTreasuryPricesFetcher(
         **kwargs: Any,
     ) -> str:
         """Extract the raw data from US Treasury website."""
-
         url = "https://treasurydirect.gov/GA-FI/FedInvest/securityPriceDetail"
 
         HEADERS = {
@@ -109,20 +106,22 @@ class GovernmentUSTreasuryPricesFetcher(
         **kwargs: Any,
     ) -> List[GovernmentUSTreasuryPricesData]:
         """Transform the data."""
-
         try:
+            if not data:
+                raise EmptyDataError("Data not found")
             results = read_csv(StringIO(data), header=0)
-            columns = [
-                "cusip",
-                "security_type",
-                "rate",
-                "maturity_date",
-                "call_date",
-                "bid",
-                "offer",
-                "eod_price",
-            ]
-            results.columns = columns
+            results.columns = Index(
+                [
+                    "cusip",
+                    "security_type",
+                    "rate",
+                    "maturity_date",
+                    "call_date",
+                    "bid",
+                    "offer",
+                    "eod_price",
+                ]
+            )
             results["date"] = query.date.strftime("%Y-%m-%d")  # type: ignore
             for col in ["maturity_date", "call_date"]:
                 results[col] = (

@@ -12,7 +12,7 @@ import pandas as pd
 import yfinance as yf
 from dateutil.relativedelta import relativedelta
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_yfinance.utils.references import MONTHS
+from openbb_yfinance.utils.references import INTERVALS, MONTHS, PERIODS
 
 
 def get_futures_data() -> pd.DataFrame:
@@ -84,8 +84,8 @@ def yf_download(
     symbol: str,
     start_date: Optional[Union[str, dateType]] = None,
     end_date: Optional[Union[str, dateType]] = None,
-    interval: str = "1d",
-    period: str = "max",
+    interval: INTERVALS = "1d",
+    period: PERIODS = "max",
     prepost: bool = False,
     actions: bool = False,
     progress: bool = False,
@@ -93,26 +93,29 @@ def yf_download(
     keepna: bool = False,
     repair: bool = False,
     rounding: bool = False,
-    group_by: Literal["symbol", "column"] = "symbol",
+    group_by: Literal["ticker", "column"] = "ticker",
     adjusted: bool = False,
     **kwargs: Any,
 ) -> pd.DataFrame:
     """Get yFinance OHLC data for any ticker and interval available."""
     symbol = symbol.upper()
     _start_date = start_date
-
+    intraday = False
     if interval in ["60m", "1h"]:
         period = "2y" if period in ["5y", "10y", "max"] else period
         _start_date = None
+        intraday = True
 
     if interval in ["2m", "5m", "15m", "30m", "90m"]:
         _start_date = (datetime.now().date() - relativedelta(days=58)).strftime(
             "%Y-%m-%d"
         )
+        intraday = True
 
     if interval == "1m":
         period = "5d"
         _start_date = None
+        intraday = True
 
     if adjusted is False:
         kwargs = dict(auto_adjust=False, back_adjust=False)
@@ -143,52 +146,42 @@ def yf_download(
         _data = pd.DataFrame()
         for ticker in tickers:
             temp = data[ticker].copy().dropna(how="all")
-            for i in temp.index:
-                temp.loc[i, "symbol"] = ticker
-            temp = temp.reset_index().rename(
-                columns={"Date": "date", "Datetime": "date"}
-            )
-            _data = pd.concat([_data, temp])
-        index_keys = ["date", "symbol"] if "symbol" in _data.columns else ["date"]
-        _data = _data.set_index(index_keys).sort_index()
-        data = _data
+            if len(temp) > 0:
+                temp.loc[:, "symbol"] = ticker
+                temp = temp.reset_index().rename(
+                    columns={"Date": "date", "Datetime": "date", "index": "date"}
+                )
+                _data = pd.concat([_data, temp])
+        if not _data.empty:
+            index_keys = ["date", "symbol"] if "symbol" in _data.columns else "date"
+            _data = _data.set_index(index_keys).sort_index()
+            data = _data
     if not data.empty:
         data = data.reset_index()
         data = data.rename(columns={"Date": "date", "Datetime": "date"})
-        data["date"] = pd.to_datetime(data["date"])
+        data["date"] = data["date"].apply(pd.to_datetime)
         data = data[data["Open"] > 0]
-
         if start_date is not None:
             data = data[data["date"] >= pd.to_datetime(start_date)]
-            if end_date is not None and pd.to_datetime(end_date) > pd.to_datetime(
-                start_date
-            ):
-                data = data[
-                    data["date"] <= (pd.to_datetime(end_date) + relativedelta(days=1))
-                ]
-
-        if period not in [
-            "max",
-            "1d",
-            "5d",
-            "1wk",
-            "1mo",
-            "3mo",
-            "6mo",
-            "1y",
-            "2y",
-            "5y",
-            "10y",
-        ]:
+        if (
+            end_date is not None
+            and start_date is not None
+            and pd.to_datetime(end_date) > pd.to_datetime(start_date)
+        ):
+            data = data[
+                data["date"]
+                <= (
+                    pd.to_datetime(end_date)
+                    + relativedelta(minutes=719 if intraday is True else 0)
+                )
+            ]
+        if intraday is True:
             data["date"] = data["date"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        if interval not in ["1m", "2m", "5m", "15m", "30m", "90m", "60m", "1h"]:
+        else:
             data["date"] = data["date"].dt.strftime("%Y-%m-%d")
-
         if adjusted is False:
             data = data.drop(columns=["Adj Close"])
-
         data.columns = data.columns.str.lower().str.replace(" ", "_").to_list()
-
     return data
 
 

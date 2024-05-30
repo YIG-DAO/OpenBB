@@ -17,9 +17,12 @@ from openbb_core.provider.standard_models.price_target import (
 )
 from openbb_core.provider.utils.descriptions import QUERY_DESCRIPTIONS
 from openbb_core.provider.utils.errors import EmptyDataError
-from openbb_core.provider.utils.helpers import amake_requests, get_querystring
+from openbb_core.provider.utils.helpers import (
+    amake_requests,
+    get_querystring,
+    safe_fromtimestamp,
+)
 from pydantic import Field, field_validator, model_validator
-from pytz import UTC
 
 COVERAGE_DICT = {
     "downgrades": "Downgrades",
@@ -45,8 +48,21 @@ class BenzingaPriceTargetQueryParams(PriceTargetQueryParams):
     __alias_dict__ = {
         "limit": "pagesize",
         "symbol": "parameters[tickers]",
+        "date": "parameters[date]",
+        "start_date": "parameters[date_from]",
+        "end_date": "parameters[date_to]",
+        "updated": "parameters[updated]",
+        "importance": "parameters[importance]",
+        "action": "parameters[action]",
+        "analyst_ids": "parameters[analyst_id]",
+        "firm_ids": "parameters[firm_id]",
     }
-    __json_schema_extra__ = {"symbol": ["multiple_items_allowed"]}
+    __json_schema_extra__ = {
+        "symbol": ["multiple_items_allowed"],
+        "analyst_ids": ["multiple_items_allowed"],
+        "firm_ids": ["multiple_items_allowed"],
+        "fields": ["multiple_items_allowed"],
+    }
 
     page: Optional[int] = Field(
         default=0,
@@ -57,17 +73,14 @@ class BenzingaPriceTargetQueryParams(PriceTargetQueryParams):
     date: Optional[dateType] = Field(
         default=None,
         description="Date for calendar data, shorthand for date_from and date_to.",
-        alias="parameters[date]",
     )
     start_date: Optional[dateType] = Field(
         default=None,
         description=QUERY_DESCRIPTIONS.get("start_date", ""),
-        alias="parameters[date_from]",
     )
     end_date: Optional[dateType] = Field(
         default=None,
         description=QUERY_DESCRIPTIONS.get("end_date", ""),
-        alias="parameters[date_to]",
     )
     updated: Optional[Union[dateType, int]] = Field(
         default=None,
@@ -75,16 +88,13 @@ class BenzingaPriceTargetQueryParams(PriceTargetQueryParams):
         + " This will force the sort order to be Greater Than or Equal to the timestamp indicated."
         + " The date can be a date string or a Unix timestamp."
         + " The date string must be in the format of YYYY-MM-DD.",
-        alias="parameters[updated]",
     )
     importance: Optional[int] = Field(
         default=None,
         description="Importance level to filter by."
         + " Uses Greater Than or Equal To the importance indicated",
-        alias="parameters[importance]",
     )
-    action: Union[
-        None,
+    action: Optional[
         Literal[
             "downgrades",
             "maintains",
@@ -97,22 +107,19 @@ class BenzingaPriceTargetQueryParams(PriceTargetQueryParams):
             "removes",
             "suspends",
             "firm_dissolved",
-        ],
+        ]
     ] = Field(
         default=None,
         description="Filter by a specific action_company.",
-        alias="parameters[action]",
     )
     analyst_ids: Optional[Union[List[str], str]] = Field(
         default=None,
         description="Comma-separated list of analyst (person) IDs."
         + " Omitting will bring back all available analysts.",
-        alias="parameters[analyst_id]",
     )
     firm_ids: Optional[Union[List[str], str]] = Field(
         default=None,
         description="Comma-separated list of firm IDs.",
-        alias="parameters[firm_id]",
     )
     fields: Optional[Union[List[str], str]] = Field(
         default=None,
@@ -166,8 +173,7 @@ class BenzingaPriceTargetData(PriceTargetData):
         "url_analyst": "url",
     }
 
-    action: Union[
-        None,
+    action: Optional[
         Literal[
             "Downgrades",
             "Maintains",
@@ -180,22 +186,21 @@ class BenzingaPriceTargetData(PriceTargetData):
             "Removes",
             "Suspends",
             "Firm Dissolved",
-        ],
+        ]
     ] = Field(
         default=None,
         description="Description of the change in rating from firm's last rating."
         "Note that all of these terms are precisely defined.",
         alias="action_company",
     )
-    action_change: Union[
-        None,
-        Literal["Announces", "Maintains", "Lowers", "Raises", "Removes", "Adjusts"],
+    action_change: Optional[
+        Literal["Announces", "Maintains", "Lowers", "Raises", "Removes", "Adjusts"]
     ] = Field(
         default=None,
         description="Description of the change in price target from firm's last price target.",
         alias="action_pt",
     )
-    importance: Union[None, Literal[0, 1, 2, 3, 4, 5]] = Field(
+    importance: Optional[Literal[0, 1, 2, 3, 4, 5]] = Field(
         default=None,
         description="Subjective Basis of How Important Event is to Market. 5 = High",
     )
@@ -224,12 +229,12 @@ class BenzingaPriceTargetData(PriceTargetData):
 
     @field_validator("last_updated", mode="before", check_fields=False)
     @classmethod
-    def validate_date(cls, v):
+    def validate_date(cls, v: float) -> Optional[dateType]:
         """Convert the Unix timestamp to a datetime object."""
         if v:
-            dt = datetime.fromtimestamp(v, UTC)
+            dt = safe_fromtimestamp(v, tz=timezone.utc)
             return dt.date() if dt.time() == dt.min.time() else dt
-        return v
+        return None
 
     @model_validator(mode="before")
     @classmethod

@@ -28,6 +28,7 @@ def obb(pytestconfig):  # pylint: disable=inconsistent-return-statements
 )
 @pytest.mark.integration
 def test_index_constituents(params, obb):
+    """Test the index constituents endpoint."""
     result = obb.index.constituents(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -42,47 +43,27 @@ def test_index_constituents(params, obb):
                 "interval": "1d",
                 "provider": "cboe",
                 "symbol": "AAVE100",
-                "start_date": "2024-01-01",
-                "end_date": "2024-02-05",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
                 "use_cache": False,
-                "sort": None,
-                "limit": None,
             }
         ),
         (
             {
                 "interval": "1d",
-                "provider": "cboe",
-                "symbol": "AAVE100",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "use_cache": False,
-                "sort": None,
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "interval": "1min",
                 "provider": "fmp",
                 "symbol": "^DJI",
                 "start_date": "2024-01-01",
                 "end_date": "2024-02-05",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
             }
         ),
         (
             {
-                "interval": "1day",
+                "interval": "1h",
                 "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
+                "symbol": "^DJI,^NDX",
+                "start_date": None,
+                "end_date": None,
             }
         ),
         (
@@ -110,15 +91,10 @@ def test_index_constituents(params, obb):
         (
             {
                 "interval": "1d",
-                "period": "max",
-                "prepost": True,
-                "rounding": True,
                 "provider": "yfinance",
                 "symbol": "DJI",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
-                "sort": None,
-                "limit": None,
             }
         ),
         (
@@ -128,7 +104,6 @@ def test_index_constituents(params, obb):
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
                 "symbol": "DJI",
-                "sort": "desc",
                 "limit": 100,
             }
         ),
@@ -136,6 +111,7 @@ def test_index_constituents(params, obb):
 )
 @pytest.mark.integration
 def test_index_price_historical(params, obb):
+    """Test the index historical price endpoint."""
     result = obb.index.price.historical(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -147,122 +123,70 @@ def test_index_price_historical(params, obb):
     [
         (
             {
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-03-03",
-                "provider": "fmp",
-                "sort": "desc",
-                "interval": "1day",
-                "limit": None,
-            }
-        ),
-        (
-            {
                 "interval": "1d",
                 "provider": "cboe",
                 "symbol": "AAVE100",
                 "start_date": "2023-01-01",
-                "end_date": "2023-01-05",
-                "use_cache": True,
-                "limit": None,
-                "sort": None,
-            }
-        ),
-        (
-            {
-                "interval": "1d",
-                "provider": "cboe",
-                "symbol": "AAVE100",
-                "start_date": "2024-01-01",
-                "end_date": "2024-02-06",
+                "end_date": "2023-06-06",
                 "use_cache": False,
-                "limit": None,
-                "sort": None,
-            }
-        ),
-        (
-            {
-                "interval": "1min",
-                "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2024-02-01",
-                "end_date": "2024-02-03",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "interval": "1day",
-                "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "timespan": "minute",
-                "sort": "desc",
-                "limit": 49999,
-                "adjusted": True,
-                "multiplier": 1,
-                "provider": "polygon",
-                "symbol": "NDX",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "interval": None,
-            }
-        ),
-        (
-            {
-                "timespan": "day",
-                "sort": "desc",
-                "limit": 49999,
-                "adjusted": True,
-                "multiplier": 1,
-                "provider": "polygon",
-                "symbol": "NDX",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "interval": None,
             }
         ),
         (
             {
                 "interval": "1d",
-                "period": "max",
-                "prepost": True,
-                "rounding": True,
+                "provider": "fmp",
+                "symbol": "^DJI",
+                "start_date": "2024-01-01",
+                "end_date": "2024-02-05",
+            }
+        ),
+        (
+            {
+                "interval": "1m",
+                "sort": "desc",
+                "limit": 49999,
+                "provider": "polygon",
+                "symbol": "NDX",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
+        (
+            {
+                "interval": "1d",
+                "sort": "desc",
+                "limit": 49999,
+                "provider": "polygon",
+                "symbol": "NDX",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
+        (
+            {
+                "interval": "1d",
                 "provider": "yfinance",
                 "symbol": "DJI",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
-                "limit": None,
-                "sort": None,
             }
         ),
         (
             {
+                "interval": "1d",
                 "provider": "intrinio",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
-                "symbol": "$DJI",
-                "tag": "level",
-                "sort": "desc",
+                "symbol": "DJI",
                 "limit": 100,
-                "type": None,
-                "interval": None,
             }
         ),
     ],
 )
 @pytest.mark.integration
+@pytest.mark.skip(reason="Deprecating this endpoint")
 def test_index_market(params, obb):
+    """Test the index market endpoint."""
     result = obb.index.market(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -281,6 +205,7 @@ def test_index_market(params, obb):
 )
 @pytest.mark.integration
 def test_index_available(params, obb):
+    """Test the index available endpoint."""
     result = obb.index.available(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -302,6 +227,7 @@ def test_index_available(params, obb):
 )
 @pytest.mark.integration
 def test_index_search(params, obb):
+    """Test the index search endpoint."""
     result = obb.index.search(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -317,6 +243,7 @@ def test_index_search(params, obb):
 )
 @pytest.mark.integration
 def test_index_snapshots(params, obb):
+    """Test the index snapshots endpoint."""
     result = obb.index.snapshots(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -340,6 +267,7 @@ def test_index_snapshots(params, obb):
 )
 @pytest.mark.integration
 def test_index_sp500_multiples(params, obb):
+    """Test the index sp500 multiples endpoint."""
     result = obb.index.sp500_multiples(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -354,6 +282,7 @@ def test_index_sp500_multiples(params, obb):
 )
 @pytest.mark.integration
 def test_index_sectors(params, obb):
+    """Test the index sectors endpoint."""
     result = obb.index.sectors(**params)
     assert result
     assert isinstance(result, OBBject)

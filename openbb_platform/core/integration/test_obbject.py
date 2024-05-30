@@ -1,3 +1,5 @@
+"""Test the OBBject."""
+
 import contextlib
 import sys
 
@@ -75,7 +77,7 @@ def test_to_chart(obb):
     """Test obbject to chart."""
 
     res = obb.equity.price.historical("AAPL", provider="fmp")
-    res.charting.to_chart()
+    res.charting.to_chart(render=False)
     assert isinstance(res.chart.fig, OpenBBFigure)
 
 

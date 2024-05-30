@@ -1,3 +1,5 @@
+"""Test the index API endpoints."""
+
 import base64
 
 import pytest
@@ -9,6 +11,7 @@ from openbb_core.provider.utils.helpers import get_querystring
 
 @pytest.fixture(scope="session")
 def headers():
+    """Get the headers for the API request."""
     userpass = f"{Env().API_USERNAME}:{Env().API_PASSWORD}"
     userpass_bytes = userpass.encode("ascii")
     base64_bytes = base64.b64encode(userpass_bytes)
@@ -29,6 +32,7 @@ def headers():
 )
 @pytest.mark.integration
 def test_index_constituents(params, headers):
+    """Test the index constituents endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -43,57 +47,37 @@ def test_index_constituents(params, headers):
     [
         (
             {
-                "interval": "1m",
-                "provider": "cboe",
-                "symbol": "AAVE100",
-                "start_date": "2024-01-01",
-                "end_date": "2024-02-05",
-                "use_cache": False,
-                "sort": None,
-                "limit": None,
-            }
-        ),
-        (
-            {
                 "interval": "1d",
                 "provider": "cboe",
                 "symbol": "AAVE100",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
                 "use_cache": False,
-                "sort": None,
-                "limit": None,
             }
         ),
         (
             {
-                "interval": "1min",
+                "interval": "1d",
                 "provider": "fmp",
                 "symbol": "^DJI",
                 "start_date": "2024-01-01",
                 "end_date": "2024-02-05",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
             }
         ),
         (
             {
-                "interval": "1day",
+                "interval": "1h",
                 "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
+                "symbol": "^DJI,^NDX",
+                "start_date": None,
+                "end_date": None,
             }
         ),
         (
             {
+                "interval": "1m",
                 "sort": "desc",
                 "limit": 49999,
-                "interval": "1m",
                 "provider": "polygon",
                 "symbol": "NDX",
                 "start_date": "2023-01-01",
@@ -114,15 +98,10 @@ def test_index_constituents(params, headers):
         (
             {
                 "interval": "1d",
-                "period": "max",
-                "prepost": True,
-                "rounding": True,
                 "provider": "yfinance",
                 "symbol": "DJI",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
-                "sort": None,
-                "limit": None,
             }
         ),
         (
@@ -132,7 +111,6 @@ def test_index_constituents(params, headers):
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
                 "symbol": "DJI",
-                "sort": "desc",
                 "limit": 100,
             }
         ),
@@ -140,6 +118,7 @@ def test_index_constituents(params, headers):
 )
 @pytest.mark.integration
 def test_index_price_historical(params, headers):
+    """Test the index historical price endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -154,122 +133,70 @@ def test_index_price_historical(params, headers):
     [
         (
             {
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-03-03",
-                "provider": "fmp",
-                "sort": "desc",
-                "interval": "1day",
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "interval": "1m",
-                "provider": "cboe",
-                "symbol": "AAVE100",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "use_cache": True,
-                "limit": None,
-                "sort": None,
-            }
-        ),
-        (
-            {
                 "interval": "1d",
                 "provider": "cboe",
                 "symbol": "AAVE100",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
                 "use_cache": False,
-                "limit": None,
-                "sort": None,
-            }
-        ),
-        (
-            {
-                "interval": "1min",
-                "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "interval": "1day",
-                "provider": "fmp",
-                "symbol": "^DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "timeseries": 1,
-                "sort": "desc",
-                "limit": None,
-            }
-        ),
-        (
-            {
-                "timespan": "minute",
-                "sort": "desc",
-                "limit": 49999,
-                "adjusted": True,
-                "multiplier": 1,
-                "provider": "polygon",
-                "symbol": "NDX",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "interval": None,
-            }
-        ),
-        (
-            {
-                "timespan": "day",
-                "sort": "desc",
-                "limit": 49999,
-                "adjusted": True,
-                "multiplier": 1,
-                "provider": "polygon",
-                "symbol": "NDX",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "interval": None,
             }
         ),
         (
             {
                 "interval": "1d",
-                "period": "max",
-                "prepost": True,
-                "rounding": True,
-                "provider": "yfinance",
-                "symbol": "DJI",
-                "start_date": "2023-01-01",
-                "end_date": "2023-06-06",
-                "limit": None,
-                "sort": None,
+                "provider": "fmp",
+                "symbol": "^DJI",
+                "start_date": "2024-01-01",
+                "end_date": "2024-02-05",
             }
         ),
         (
             {
+                "interval": "1m",
+                "sort": "desc",
+                "limit": 49999,
+                "provider": "polygon",
+                "symbol": "NDX",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
+        (
+            {
+                "interval": "1d",
+                "sort": "desc",
+                "limit": 49999,
+                "provider": "polygon",
+                "symbol": "NDX",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
+        (
+            {
+                "interval": "1d",
+                "provider": "yfinance",
+                "symbol": "DJI",
+                "start_date": "2023-01-01",
+                "end_date": "2023-06-06",
+            }
+        ),
+        (
+            {
+                "interval": "1d",
                 "provider": "intrinio",
                 "start_date": "2023-01-01",
                 "end_date": "2023-06-06",
-                "symbol": "$DJI",
-                "tag": "level",
-                "sort": "desc",
+                "symbol": "DJI",
                 "limit": 100,
-                "type": None,
-                "interval": None,
             }
         ),
     ],
 )
 @pytest.mark.integration
+@pytest.mark.skip(reason="Deprecating this endpoint")
 def test_index_market(params, headers):
+    """Test the index market endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -290,6 +217,7 @@ def test_index_market(params, headers):
 )
 @pytest.mark.integration
 def test_index_available(params, headers):
+    """Test the index available endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -307,6 +235,7 @@ def test_index_available(params, headers):
 )
 @pytest.mark.integration
 def test_index_search(params, headers):
+    """Test the index search endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -325,6 +254,7 @@ def test_index_search(params, headers):
 )
 @pytest.mark.integration
 def test_index_snapshots(params, headers):
+    """Test the index snapshots endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -351,6 +281,7 @@ def test_index_snapshots(params, headers):
 )
 @pytest.mark.integration
 def test_index_sp500_multiples(params, headers):
+    """Test the index sp500 multiples endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])
@@ -368,6 +299,7 @@ def test_index_sp500_multiples(params, headers):
 )
 @pytest.mark.integration
 def test_index_sectors(params, headers):
+    """Test the index sectors endpoint."""
     params = {p: v for p, v in params.items() if v}
 
     query_str = get_querystring(params, [])

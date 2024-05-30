@@ -2,10 +2,10 @@
 
 from typing import Literal, Optional
 
-from openbb_core.app.model.custom_parameter import OpenBBCustomParameter
+from openbb_core.app.model.field import OpenBBField
 from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.static.container import Container
-from openbb_core.app.static.utils.decorators import validate
+from openbb_core.app.static.utils.decorators import exception_handler, validate
 from openbb_core.app.static.utils.filters import filter_inputs
 from typing_extensions import Annotated
 
@@ -19,13 +19,17 @@ class ROUTER_derivatives_options(Container):
     def __repr__(self) -> str:
         return self.__doc__ or ""
 
+    @exception_handler
     @validate
     def chains(
         self,
-        symbol: Annotated[
-            str, OpenBBCustomParameter(description="Symbol to get data for.")
-        ],
-        provider: Optional[Literal["intrinio"]] = None,
+        symbol: Annotated[str, OpenBBField(description="Symbol to get data for.")],
+        provider: Annotated[
+            Optional[Literal["intrinio", "yfinance"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio, yfinance."
+            ),
+        ] = None,
         **kwargs
     ) -> OBBject:
         """Get the complete options chain for a ticker.
@@ -34,10 +38,8 @@ class ROUTER_derivatives_options(Container):
         ----------
         symbol : str
             Symbol to get data for.
-        provider : Optional[Literal['intrinio']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'intrinio' if there is
-            no default.
+        provider : Optional[Literal['intrinio', 'yfinance']]
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio, yfinance.
         date : Optional[datetime.date]
             The end-of-day date for options chains data. (provider: intrinio)
 
@@ -46,13 +48,13 @@ class ROUTER_derivatives_options(Container):
         OBBject
             results : List[OptionsChains]
                 Serializable results.
-            provider : Optional[Literal['intrinio']]
+            provider : Optional[Literal['intrinio', 'yfinance']]
                 Provider name.
             warnings : Optional[List[Warning_]]
                 List of warnings.
             chart : Optional[Chart]
                 Chart object.
-            extra: Dict[str, Any]
+            extra : Dict[str, Any]
                 Extra info.
 
         OptionsChains
@@ -126,7 +128,7 @@ class ROUTER_derivatives_options(Container):
         close_ask_time : Optional[datetime]
             The time of the ask closing price for the option that day.
         prev_close : Optional[float]
-
+            The previous close price.
         change : Optional[float]
             The change in the price of the option.
         change_percent : Optional[float]
@@ -145,13 +147,19 @@ class ROUTER_derivatives_options(Container):
             Rho of the option.
         exercise_style : Optional[str]
             The exercise style of the option, American or European. (provider: intrinio)
+        dte : Optional[int]
+            Days to expiration. (provider: yfinance)
+        in_the_money : Optional[bool]
+            Whether the option is in the money. (provider: yfinance)
+        last_trade_timestamp : Optional[datetime]
+            Timestamp for when the option was last traded. (provider: yfinance)
 
-        Example
-        -------
+        Examples
+        --------
         >>> from openbb import obb
-        >>> chains = obb.derivatives.options.chains(symbol="AAPL", provider="intrinio").to_df()
-        >>> #### Use the "date" parameter to get the end-of-day-data for a specific date, where supported. ####
-        >>> eod_chains = obb.derivatives.options.chains(symbol="AAPL", date="2023-01-25", provider="intrinio").to_df()
+        >>> obb.derivatives.options.chains(symbol='AAPL', provider='intrinio')
+        >>> # Use the "date" parameter to get the end-of-day-data for a specific date, where supported.
+        >>> obb.derivatives.options.chains(symbol='AAPL', date='2023-01-25', provider='intrinio')
         """  # noqa: E501
 
         return self._run(
@@ -160,8 +168,8 @@ class ROUTER_derivatives_options(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/derivatives/options/chains",
-                        ("intrinio",),
+                        "derivatives.options.chains",
+                        ("intrinio", "yfinance"),
                     )
                 },
                 standard_params={
@@ -171,16 +179,20 @@ class ROUTER_derivatives_options(Container):
             )
         )
 
+    @exception_handler
     @validate
     def unusual(
         self,
         symbol: Annotated[
             Optional[str],
-            OpenBBCustomParameter(
-                description="Symbol to get data for. (the underlying symbol)"
+            OpenBBField(description="Symbol to get data for. (the underlying symbol)"),
+        ] = None,
+        provider: Annotated[
+            Optional[Literal["intrinio"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio."
             ),
         ] = None,
-        provider: Optional[Literal["intrinio"]] = None,
         **kwargs
     ) -> OBBject:
         """Get the complete options chain for a ticker.
@@ -190,9 +202,21 @@ class ROUTER_derivatives_options(Container):
         symbol : Optional[str]
             Symbol to get data for. (the underlying symbol)
         provider : Optional[Literal['intrinio']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'intrinio' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: intrinio.
+        start_date : Optional[datetime.date]
+            Start date of the data, in YYYY-MM-DD format. If no symbol is supplied, requests are only allowed for a single date. Use the start_date for the target date. Intrinio appears to have data beginning Feb/2022, but is unclear when it actually began. (provider: intrinio)
+        end_date : Optional[datetime.date]
+            End date of the data, in YYYY-MM-DD format. If a symbol is not supplied, do not include an end date. (provider: intrinio)
+        trade_type : Optional[Literal['block', 'sweep', 'large']]
+            The type of unusual activity to query for. (provider: intrinio)
+        sentiment : Optional[Literal['bullish', 'bearish', 'neutral']]
+            The sentiment type to query for. (provider: intrinio)
+        min_value : Optional[Union[int, float]]
+            The inclusive minimum total value for the unusual activity. (provider: intrinio)
+        max_value : Optional[Union[int, float]]
+            The inclusive maximum total value for the unusual activity. (provider: intrinio)
+        limit : int
+            The number of data entries to return. A typical day for all symbols will yield 50-80K records. The API will paginate at 1000 records. The high default limit (100K) is to be able to reliably capture the most days. The high absolute limit (1.25M) is to allow for outlier days. Queries at the absolute limit will take a long time, and might be unreliable. Apply filters to improve performance. (provider: intrinio)
         source : Literal['delayed', 'realtime']
             The source of the data. Either realtime or delayed. (provider: intrinio)
 
@@ -207,7 +231,7 @@ class ROUTER_derivatives_options(Container):
                 List of warnings.
             chart : Optional[Chart]
                 Chart object.
-            extra: Dict[str, Any]
+            extra : Dict[str, Any]
                 Extra info.
 
         OptionsUnusual
@@ -216,31 +240,31 @@ class ROUTER_derivatives_options(Container):
             Symbol representing the entity requested in the data. (the underlying symbol)
         contract_symbol : str
             Contract symbol for the option.
-        trade_type : Optional[str]
+        trade_timestamp : Optional[datetime]
+            The datetime of order placement. (provider: intrinio)
+        trade_type : Optional[Literal['block', 'sweep', 'large']]
             The type of unusual trade. (provider: intrinio)
-        sentiment : Optional[str]
+        sentiment : Optional[Literal['bullish', 'bearish', 'neutral']]
             Bullish, Bearish, or Neutral Sentiment is estimated based on whether the trade was executed at the bid, ask, or mark price. (provider: intrinio)
-        total_value : Optional[Union[int, float]]
-            The aggregated value of all option contract premiums included in the trade. (provider: intrinio)
-        total_size : Optional[int]
-            The total number of contracts involved in a single transaction. (provider: intrinio)
-        average_price : Optional[float]
-            The average premium paid per option contract. (provider: intrinio)
-        ask_at_execution : Optional[float]
-            Ask price at execution. (provider: intrinio)
         bid_at_execution : Optional[float]
             Bid price at execution. (provider: intrinio)
+        ask_at_execution : Optional[float]
+            Ask price at execution. (provider: intrinio)
+        average_price : Optional[float]
+            The average premium paid per option contract. (provider: intrinio)
         underlying_price_at_execution : Optional[float]
             Price of the underlying security at execution of trade. (provider: intrinio)
-        timestamp : Optional[datetime]
-            The UTC timestamp of order placement. (provider: intrinio)
+        total_size : Optional[int]
+            The total number of contracts involved in a single transaction. (provider: intrinio)
+        total_value : Optional[Union[int, float]]
+            The aggregated value of all option contract premiums included in the trade. (provider: intrinio)
 
-        Example
-        -------
+        Examples
+        --------
         >>> from openbb import obb
-        >>> options = obb.derivatives.options.unusual().to_df()
-        >>> #### Use the "symbol" parameter to get the most recent activity for a specific symbol. ####
-        >>> options = obb.derivatives.options.unusual(symbol="TSLA").to_df()
+        >>> obb.derivatives.options.unusual(symbol='TSLA', provider='intrinio')
+        >>> # Use the 'symbol' parameter to get the most recent activity for a specific symbol.
+        >>> obb.derivatives.options.unusual(symbol='TSLA', provider='intrinio')
         """  # noqa: E501
 
         return self._run(
@@ -249,7 +273,7 @@ class ROUTER_derivatives_options(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/derivatives/options/unusual",
+                        "derivatives.options.unusual",
                         ("intrinio",),
                     )
                 },

@@ -14,9 +14,11 @@ finviz_provider = Provider(
     credentials=None,
     fetcher_dict={
         "CompareGroups": FinvizCompareGroupsFetcher,
+        "EtfPricePerformance": FinvizPricePerformanceFetcher,
         "EquityInfo": FinvizEquityProfileFetcher,
         "KeyMetrics": FinvizKeyMetricsFetcher,
         "PricePerformance": FinvizPricePerformanceFetcher,
         "PriceTarget": FinvizPriceTargetFetcher,
     },
+    repr_name="FinViz",
 )

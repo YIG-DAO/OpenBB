@@ -3,10 +3,10 @@
 import datetime
 from typing import Literal, Optional, Union
 
-from openbb_core.app.model.custom_parameter import OpenBBCustomParameter
+from openbb_core.app.model.field import OpenBBField
 from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.static.container import Container
-from openbb_core.app.static.utils.decorators import validate
+from openbb_core.app.static.utils.decorators import exception_handler, validate
 from openbb_core.app.static.utils.filters import filter_inputs
 from typing_extensions import Annotated
 
@@ -21,37 +21,39 @@ class ROUTER_economy_gdp(Container):
     def __repr__(self) -> str:
         return self.__doc__ or ""
 
+    @exception_handler
     @validate
     def forecast(
         self,
         period: Annotated[
             Literal["quarter", "annual"],
-            OpenBBCustomParameter(
+            OpenBBField(
                 description="Time period of the data to return. Units for nominal GDP period. Either quarter or annual."
             ),
         ] = "annual",
         start_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="Start date of the data, in YYYY-MM-DD format."
-            ),
+            OpenBBField(description="Start date of the data, in YYYY-MM-DD format."),
         ] = None,
         end_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="End date of the data, in YYYY-MM-DD format."
-            ),
+            OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
         ] = None,
         type: Annotated[
             Literal["nominal", "real"],
-            OpenBBCustomParameter(
+            OpenBBField(
                 description="Type of GDP to get forecast of. Either nominal or real."
             ),
         ] = "real",
-        provider: Optional[Literal["oecd"]] = None,
+        provider: Annotated[
+            Optional[Literal["oecd"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd."
+            ),
+        ] = None,
         **kwargs
     ) -> OBBject:
-        """Forecasted GDP Data.
+        """Get Forecasted GDP Data.
 
         Parameters
         ----------
@@ -64,9 +66,7 @@ class ROUTER_economy_gdp(Container):
         type : Literal['nominal', 'real']
             Type of GDP to get forecast of. Either nominal or real.
         provider : Optional[Literal['oecd']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'oecd' if there is
-            no default.
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd.
         country : Literal['argentina', 'asia', 'australia', 'austria', 'belgium', 'brazil', 'bulgaria', 'canada', 'chile', 'china', 'colombia', 'costa_rica', 'croatia', 'czech_republic', 'denmark', 'estonia', 'euro_area_17', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland', 'india', 'indonesia', 'ireland', 'israel', 'italy', 'japan', 'korea', 'latvia', 'lithuania', 'luxembourg', 'mexico', 'netherlands', 'new_zealand', 'non-oecd', 'norway', 'oecd_total', 'peru', 'poland', 'portugal', 'romania', 'russia', 'slovak_republic', 'slovenia', 'south_africa', 'spain', 'sweden', 'switzerland', 'turkey', 'united_kingdom', 'united_states', 'world']
             Country to get GDP for. (provider: oecd)
 
@@ -81,7 +81,7 @@ class ROUTER_economy_gdp(Container):
                 List of warnings.
             chart : Optional[Chart]
                 Chart object.
-            extra: Dict[str, Any]
+            extra : Dict[str, Any]
                 Extra info.
 
         GdpForecast
@@ -91,10 +91,11 @@ class ROUTER_economy_gdp(Container):
         value : Optional[float]
             Nominal GDP value on the date.
 
-        Example
-        -------
+        Examples
+        --------
         >>> from openbb import obb
-        >>> obb.economy.gdp.forecast(period="annual", type="real")
+        >>> obb.economy.gdp.forecast(provider='oecd')
+        >>> obb.economy.gdp.forecast(period='annual', type='real', provider='oecd')
         """  # noqa: E501
 
         return self._run(
@@ -103,7 +104,7 @@ class ROUTER_economy_gdp(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/economy/gdp/forecast",
+                        "economy.gdp.forecast",
                         ("oecd",),
                     )
                 },
@@ -117,31 +118,33 @@ class ROUTER_economy_gdp(Container):
             )
         )
 
+    @exception_handler
     @validate
     def nominal(
         self,
         units: Annotated[
             Literal["usd", "usd_cap"],
-            OpenBBCustomParameter(
+            OpenBBField(
                 description="The unit of measurement for the data. Units to get nominal GDP in. Either usd or usd_cap indicating per capita."
             ),
         ] = "usd",
         start_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="Start date of the data, in YYYY-MM-DD format."
-            ),
+            OpenBBField(description="Start date of the data, in YYYY-MM-DD format."),
         ] = None,
         end_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="End date of the data, in YYYY-MM-DD format."
+            OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
+        ] = None,
+        provider: Annotated[
+            Optional[Literal["oecd"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd."
             ),
         ] = None,
-        provider: Optional[Literal["oecd"]] = None,
         **kwargs
     ) -> OBBject:
-        """Nominal GDP Data.
+        """Get Nominal GDP Data.
 
         Parameters
         ----------
@@ -152,10 +155,8 @@ class ROUTER_economy_gdp(Container):
         end_date : Union[datetime.date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['oecd']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'oecd' if there is
-            no default.
-        country : Literal['australia', 'austria', 'belgium', 'brazil', 'canada', 'chile', 'colombia', 'costa_rica', 'czech_republic', 'denmark', 'estonia', 'euro_area', 'european_union', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland', 'indonesia', 'ireland', 'israel', 'italy', 'japan', 'korea', 'latvia', 'lithuania', 'luxembourg', 'mexico', 'netherlands', 'new_zealand', 'norway', 'poland', 'portugal', 'russia', 'slovak_republic', 'slovenia', 'south_africa', 'spain', 'sweden', 'switzerland', 'turkey', 'united_kingdom', 'united_states']
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd.
+        country : Literal['australia', 'austria', 'belgium', 'brazil', 'canada', 'chile', 'colombia', 'costa_rica', 'czech_republic', 'denmark', 'estonia', 'euro_area', 'european_union', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland', 'indonesia', 'ireland', 'israel', 'italy', 'japan', 'korea', 'latvia', 'lithuania', 'luxembourg', 'mexico', 'netherlands', 'new_zealand', 'norway', 'poland', 'portugal', 'russia', 'slovak_republic', 'slovenia', 'south_africa', 'spain', 'sweden', 'switzerland', 'turkey', 'united_kingdom', 'united_states', 'all']
             Country to get GDP for. (provider: oecd)
 
         Returns
@@ -169,7 +170,7 @@ class ROUTER_economy_gdp(Container):
                 List of warnings.
             chart : Optional[Chart]
                 Chart object.
-            extra: Dict[str, Any]
+            extra : Dict[str, Any]
                 Extra info.
 
         GdpNominal
@@ -179,10 +180,11 @@ class ROUTER_economy_gdp(Container):
         value : Optional[float]
             Nominal GDP value on the date.
 
-        Example
-        -------
+        Examples
+        --------
         >>> from openbb import obb
-        >>> obb.economy.gdp.nominal(units="usd")
+        >>> obb.economy.gdp.nominal(provider='oecd')
+        >>> obb.economy.gdp.nominal(units='usd', provider='oecd')
         """  # noqa: E501
 
         return self._run(
@@ -191,7 +193,7 @@ class ROUTER_economy_gdp(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/economy/gdp/nominal",
+                        "economy.gdp.nominal",
                         ("oecd",),
                     )
                 },
@@ -204,31 +206,33 @@ class ROUTER_economy_gdp(Container):
             )
         )
 
+    @exception_handler
     @validate
     def real(
         self,
         units: Annotated[
             Literal["idx", "qoq", "yoy"],
-            OpenBBCustomParameter(
+            OpenBBField(
                 description="The unit of measurement for the data. Either idx (indicating 2015=100), qoq (previous period) or yoy (same period, previous year).)"
             ),
         ] = "yoy",
         start_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="Start date of the data, in YYYY-MM-DD format."
-            ),
+            OpenBBField(description="Start date of the data, in YYYY-MM-DD format."),
         ] = None,
         end_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="End date of the data, in YYYY-MM-DD format."
+            OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
+        ] = None,
+        provider: Annotated[
+            Optional[Literal["oecd"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd."
             ),
         ] = None,
-        provider: Optional[Literal["oecd"]] = None,
         **kwargs
     ) -> OBBject:
-        """Real GDP Data.
+        """Get Real GDP Data.
 
         Parameters
         ----------
@@ -239,10 +243,8 @@ class ROUTER_economy_gdp(Container):
         end_date : Union[datetime.date, None, str]
             End date of the data, in YYYY-MM-DD format.
         provider : Optional[Literal['oecd']]
-            The provider to use for the query, by default None.
-            If None, the provider specified in defaults is selected or 'oecd' if there is
-            no default.
-        country : Literal['G20', 'G7', 'argentina', 'australia', 'austria', 'belgium', 'brazil', 'bulgaria', 'canada', 'chile', 'china', 'colombia', 'costa_rica', 'croatia', 'czech_republic', 'denmark', 'estonia', 'euro_area_19', 'europe', 'european_union_27', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland', 'india', 'indonesia', 'ireland', 'israel', 'italy', 'japan', 'korea', 'latvia', 'lithuania', 'luxembourg', 'mexico', 'netherlands', 'new_zealand', 'norway', 'oecd_total', 'poland', 'portugal', 'romania', 'russia', 'saudi_arabia', 'slovak_republic', 'slovenia', 'south_africa', 'spain', 'sweden', 'switzerland', 'turkey', 'united_kingdom', 'united_states']
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: oecd.
+        country : Literal['G20', 'G7', 'argentina', 'australia', 'austria', 'belgium', 'brazil', 'bulgaria', 'canada', 'chile', 'china', 'colombia', 'costa_rica', 'croatia', 'czech_republic', 'denmark', 'estonia', 'euro_area_20', 'euro_area_19', 'europe', 'european_union_27', 'finland', 'france', 'germany', 'greece', 'hungary', 'iceland', 'india', 'indonesia', 'ireland', 'israel', 'italy', 'japan', 'korea', 'latvia', 'lithuania', 'luxembourg', 'mexico', 'netherlands', 'new_zealand', 'norway', 'oecd_total', 'poland', 'portugal', 'romania', 'russia', 'saudi_arabia', 'slovak_republic', 'slovenia', 'south_africa', 'spain', 'sweden', 'switzerland', 'turkey', 'united_kingdom', 'united_states', 'all']
             Country to get GDP for. (provider: oecd)
 
         Returns
@@ -256,7 +258,7 @@ class ROUTER_economy_gdp(Container):
                 List of warnings.
             chart : Optional[Chart]
                 Chart object.
-            extra: Dict[str, Any]
+            extra : Dict[str, Any]
                 Extra info.
 
         GdpReal
@@ -266,10 +268,11 @@ class ROUTER_economy_gdp(Container):
         value : Optional[float]
             Nominal GDP value on the date.
 
-        Example
-        -------
+        Examples
+        --------
         >>> from openbb import obb
-        >>> obb.economy.gdp.real(units="yoy")
+        >>> obb.economy.gdp.real(provider='oecd')
+        >>> obb.economy.gdp.real(units='yoy', provider='oecd')
         """  # noqa: E501
 
         return self._run(
@@ -278,7 +281,7 @@ class ROUTER_economy_gdp(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/economy/gdp/real",
+                        "economy.gdp.real",
                         ("oecd",),
                     )
                 },

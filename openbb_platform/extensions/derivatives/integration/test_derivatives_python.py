@@ -22,6 +22,8 @@ def obb(pytestconfig):
     [
         ({"provider": "intrinio", "symbol": "AAPL", "date": "2023-01-25"}),
         ({"provider": "cboe", "symbol": "AAPL", "use_cache": False}),
+        ({"provider": "tradier", "symbol": "AAPL"}),
+        ({"provider": "yfinance", "symbol": "AAPL"}),
         (
             {
                 "provider": "tmx",
@@ -34,6 +36,7 @@ def obb(pytestconfig):
 )
 @pytest.mark.integration
 def test_derivatives_options_chains(params, obb):
+    """Test the options chains endpoint."""
     result = obb.derivatives.options.chains(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -43,13 +46,25 @@ def test_derivatives_options_chains(params, obb):
 @parametrize(
     "params",
     [
-        ({"symbol": "AAPL"}),
-        ({"provider": "intrinio", "source": "delayed", "symbol": "AAPL"}),
-        ({"provider": "intrinio", "symbol": "PLTR", "source": "delayed"}),
+        (
+            {
+                "symbol": "AAPL",
+                "provider": "intrinio",
+                "start_date": "2023-11-20",
+                "end_date": None,
+                "min_value": None,
+                "max_value": None,
+                "trade_type": None,
+                "sentiment": "neutral",
+                "limit": 1000,
+                "source": "delayed",
+            }
+        )
     ],
 )
 @pytest.mark.integration
 def test_derivatives_options_unusual(params, obb):
+    """Test the unusual options endpoint."""
     result = obb.derivatives.options.unusual(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -73,6 +88,7 @@ def test_derivatives_options_unusual(params, obb):
 )
 @pytest.mark.integration
 def test_derivatives_futures_historical(params, obb):
+    """Test the futures historical endpoint."""
     result = obb.derivatives.futures.historical(**params)
     assert result
     assert isinstance(result, OBBject)
@@ -88,6 +104,7 @@ def test_derivatives_futures_historical(params, obb):
 )
 @pytest.mark.integration
 def test_derivatives_futures_curve(params, obb):
+    """Test the futures curve endpoint."""
     result = obb.derivatives.futures.curve(**params)
     assert result
     assert isinstance(result, OBBject)

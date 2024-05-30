@@ -3,10 +3,10 @@
 import datetime
 from typing import Literal, Optional, Union
 
-from openbb_core.app.model.custom_parameter import OpenBBCustomParameter
+from openbb_core.app.model.field import OpenBBField
 from openbb_core.app.model.obbject import OBBject
 from openbb_core.app.static.container import Container
-from openbb_core.app.static.utils.decorators import validate
+from openbb_core.app.static.utils.decorators import exception_handler, validate
 from openbb_core.app.static.utils.filters import filter_inputs
 from typing_extensions import Annotated
 
@@ -50,22 +50,24 @@ class ROUTER_fixedincome(Container):
             command_runner=self._command_runner
         )
 
+    @exception_handler
     @validate
     def sofr(
         self,
         start_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="Start date of the data, in YYYY-MM-DD format."
-            ),
+            OpenBBField(description="Start date of the data, in YYYY-MM-DD format."),
         ] = None,
         end_date: Annotated[
             Union[datetime.date, None, str],
-            OpenBBCustomParameter(
-                description="End date of the data, in YYYY-MM-DD format."
+            OpenBBField(description="End date of the data, in YYYY-MM-DD format."),
+        ] = None,
+        provider: Annotated[
+            Optional[Literal["fred"]],
+            OpenBBField(
+                description="The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred."
             ),
         ] = None,
-        provider: Optional[Literal["fred"]] = None,
         **kwargs
     ) -> OBBject:
         """Secured Overnight Financing Rate.
@@ -74,44 +76,43 @@ class ROUTER_fixedincome(Container):
         borrowing cash overnight collateralizing by Treasury securities.
 
 
-            Parameters
-            ----------
-            start_date : Union[datetime.date, None, str]
-                Start date of the data, in YYYY-MM-DD format.
-            end_date : Union[datetime.date, None, str]
-                End date of the data, in YYYY-MM-DD format.
+        Parameters
+        ----------
+        start_date : Union[datetime.date, None, str]
+            Start date of the data, in YYYY-MM-DD format.
+        end_date : Union[datetime.date, None, str]
+            End date of the data, in YYYY-MM-DD format.
+        provider : Optional[Literal['fred']]
+            The provider to use, by default None. If None, the priority list configured in the settings is used. Default priority: fred.
+        period : Literal['overnight', '30_day', '90_day', '180_day', 'index']
+            Period of SOFR rate. (provider: fred)
+
+        Returns
+        -------
+        OBBject
+            results : List[SOFR]
+                Serializable results.
             provider : Optional[Literal['fred']]
-                The provider to use for the query, by default None.
-                If None, the provider specified in defaults is selected or 'fred' if there is
-                no default.
-            period : Literal['overnight', '30_day', '90_day', '180_day', 'index']
-                Period of SOFR rate. (provider: fred)
+                Provider name.
+            warnings : Optional[List[Warning_]]
+                List of warnings.
+            chart : Optional[Chart]
+                Chart object.
+            extra : Dict[str, Any]
+                Extra info.
 
-            Returns
-            -------
-            OBBject
-                results : List[SOFR]
-                    Serializable results.
-                provider : Optional[Literal['fred']]
-                    Provider name.
-                warnings : Optional[List[Warning_]]
-                    List of warnings.
-                chart : Optional[Chart]
-                    Chart object.
-                extra: Dict[str, Any]
-                    Extra info.
+        SOFR
+        ----
+        date : date
+            The date of the data.
+        rate : Optional[float]
+            SOFR rate.
 
-            SOFR
-            ----
-            date : date
-                The date of the data.
-            rate : Optional[float]
-                SOFR rate.
-
-            Example
-            -------
-            >>> from openbb import obb
-            >>> obb.fixedincome.fixedincome.sofr(period="overnight")
+        Examples
+        --------
+        >>> from openbb import obb
+        >>> obb.fixedincome.sofr(provider='fred')
+        >>> obb.fixedincome.sofr(period='overnight', provider='fred')
         """  # noqa: E501
 
         return self._run(
@@ -120,7 +121,7 @@ class ROUTER_fixedincome(Container):
                 provider_choices={
                     "provider": self._get_provider(
                         provider,
-                        "/fixedincome/sofr",
+                        "fixedincome.sofr",
                         ("fred",),
                     )
                 },

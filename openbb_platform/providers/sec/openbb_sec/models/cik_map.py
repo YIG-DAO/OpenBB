@@ -1,27 +1,29 @@
 """SEC CIK Mapping Model."""
 
-from typing import Any, Dict, Optional, Union
+# pylint: disable=unused-argument
 
-from openbb_core.provider.abstract.data import Data
+from typing import Any, Dict, Optional
+
 from openbb_core.provider.abstract.fetcher import Fetcher
-from openbb_core.provider.standard_models.equity_info import EquityInfoQueryParams
+from openbb_core.provider.standard_models.cik_map import CikMapData, CikMapQueryParams
 from openbb_sec.utils.helpers import symbol_map
 from pydantic import Field
 
 
-class SecCikMapQueryParams(EquityInfoQueryParams):
+class SecCikMapQueryParams(CikMapQueryParams):
     """SEC CIK Mapping Query.
 
     Source: https://sec.gov/
     """
 
-
-class SecCikMapData(Data):
-    """SEC CIK Mapping Data."""
-
-    cik: Optional[Union[str, int]] = Field(
-        default=None, description="Central Index Key"
+    use_cache: Optional[bool] = Field(
+        default=True,
+        description="Whether or not to use cache for the request, default is True.",
     )
+
+
+class SecCikMapData(CikMapData):
+    """SEC CIK Mapping Data."""
 
 
 class SecCikMapFetcher(
@@ -38,13 +40,13 @@ class SecCikMapFetcher(
         return SecCikMapQueryParams(**params)
 
     @staticmethod
-    def extract_data(
-        query: SecCikMapQueryParams,  # pylint: disable=W0613:unused-argument
+    async def aextract_data(
+        query: SecCikMapQueryParams,
         credentials: Optional[Dict[str, str]],
         **kwargs: Any,
     ) -> Dict:
         """Return the raw data from the SEC endpoint."""
-        results = {"cik": symbol_map(query.symbol)}
+        results = {"cik": await symbol_map(query.symbol, query.use_cache)}
         if not results:
             return {"Error": "Symbol not found."}
         return results
